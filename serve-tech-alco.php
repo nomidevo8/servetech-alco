@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 define( 'ALCO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'ALCO_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'ALCO_VERSION', time() );
+define( 'ALCO_VERSION', '1.0' );
 
 // Include class
 require_once ALCO_PLUGIN_DIR . 'includes/class-alco-main.php';
