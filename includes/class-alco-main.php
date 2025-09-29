@@ -72,9 +72,28 @@ class Alco_Main {
 
     public function rest_decrease_count( \WP_REST_Request $request ) {
         $email = sanitize_email( $request->get_param( 'email' ) );
-        if ( $email ) {
-            $this->decrease_count( $email );
+        if ( ! $email ) {
+            return new \WP_Error( 'invalid_email', 'Invalid email address' );
         }
+
+        $emails = $this->get_emails();
+        if ( in_array( $email, $emails, true ) ) {
+            return [
+                'code' => 'email_exists',
+                'message' => 'This email has already been submitted'
+            ];
+        }
+
+        // If it's just a check, return success without decreasing count
+        if ( $request->get_param( 'check_only' ) ) {
+            return [
+                'code' => 'success',
+                'message' => 'Email is available'
+            ];
+        }
+
+        // If not just checking, proceed with decreasing count
+        $this->decrease_count( $email );
         return [ 'count' => $this->get_count() ];
     }
 
