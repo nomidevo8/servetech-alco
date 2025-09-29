@@ -1,6 +1,9 @@
 jQuery(document).ready(function($) {
     let submittedEmail = '';
 
+    // Disable submit button initially
+    $('.forminator-button.forminator-button-submit').prop('disabled', true);
+
     // 🔵 1️⃣ Inject CSS for loader
     const loaderCSS = `
         .forminator-slider-loader {
@@ -74,13 +77,57 @@ jQuery(document).ready(function($) {
 
     updateCounter();
 
-    // 🔵 4️⃣ Capture email live
+    // 🔵 4️⃣ Capture email and validate live
+    let emailCheckTimeout;
     $(document).on('input change', '.forminator-custom-form input[type="email"]', function() {
         submittedEmail = $(this).val();
+        const $emailField = $(this);
+        const $submitBtn = $('.forminator-button.forminator-button-submit');
+
+        // Initially disable the submit button
+        $submitBtn.prop('disabled', true);
+
+        // Clear previous error message if any
+        $emailField.next('.email-error-message').remove();
+
+        // Clear previous timeout
+        clearTimeout(emailCheckTimeout);
+
+        // Set new timeout to check email (wait 500ms after user stops typing)
+        emailCheckTimeout = setTimeout(function() {
+            if (!submittedEmail) {
+                $submitBtn.prop('disabled', true);
+                return;
+            }
+
+            showLoader();
+            $.ajax({
+                url: alcoData.decreaseUrl + '?check_only=1', // Adding check parameter to indicate just checking
+                method: 'POST',
+                headers: { 'X-WP-Nonce': alcoData.nonce },
+                data: { email: submittedEmail, check_only: true },
+                success: function(response) {
+                    if (response.code === 'email_exists') {
+                        $submitBtn.prop('disabled', true);
+                        // Show error message under email field
+                        $('<div class="email-error-message" style="color: #E04562; font-size: 12px; margin-top: 5px;">' +
+                                'This email has already been submitted. Please use a different email address.</div>')
+                            .insertAfter($emailField);
+                    } else {
+                        // Enable submit button only if email is valid and not used
+                        $submitBtn.prop('disabled', false);
+                    }
+                },
+                error: function() {
+                    $submitBtn.prop('disabled', true);
+                },
+                complete: hideLoader
+            });
+        }, 500);
     });
 
     // 🔵 5️⃣ Decrease counter after successful submission
-    $(document).on('forminator:form:submit:success', function() {
+    $(document).on('forminator:form:submit:success', function(e) {
         if (!submittedEmail) return;
 
         showLoader();
@@ -89,10 +136,30 @@ jQuery(document).ready(function($) {
             method: 'POST',
             headers: { 'X-WP-Nonce': alcoData.nonce },
             data: { email: submittedEmail },
-            success: function() {
+            success: function(response) {
+                if (response.code === 'email_exists') {
+                    hideLoader();
+                    alert('This email has already been submitted. Please use a different email address.');
+                    // Prevent form submission success
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                }
                 updateCounter();
             },
-            // complete: hideLoader
+            error: function(xhr) {
+                if (xhr.responseJSON && xhr.responseJSON.code === 'email_exists') {
+                    alert('This email has already been submitted. Please use a different email address.');
+                } else {
+                    alert('An error occurred. Please try again.');
+                }
+                // Prevent form submission success
+                e.preventDefault();
+                e.stopPropagation();
+                updateCounter();
+                hideLoader();
+
+            },
         });
     });
 });
